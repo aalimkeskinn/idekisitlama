@@ -58,7 +58,7 @@ const WizardStepConstraints: React.FC<WizardStepConstraintsProps> = ({
   subjects
 }) => {
   const { success, warning } = useToast();
-  const [activeTab, setActiveTab] = useState<'global' | 'teachers' | 'classes' | 'subjects'>('teachers');
+  const [activeTab, setActiveTab] = useState<'global' | 'teachers' | 'classes' | 'subjects'>('global');
   const [selectedEntity, setSelectedEntity] = useState<string>('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
@@ -190,20 +190,40 @@ const WizardStepConstraints: React.FC<WizardStepConstraintsProps> = ({
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Zaman Kısıtlamaları</h2>
         <p className="text-gray-600">Program oluşturma kurallarını ve zaman kısıtlamalarını belirleyin.</p>
       </div>
+      
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => { setActiveTab(tab.id as any); setSelectedEntity(''); }} className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center ${activeTab === tab.id ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              <tab.icon className="w-4 h-4 mr-2" />{tab.label}
+            <button 
+              key={tab.id} 
+              onClick={() => { 
+                setActiveTab(tab.id as any); 
+                setSelectedEntity(''); 
+              }} 
+              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center ${
+                activeTab === tab.id 
+                  ? 'border-purple-500 text-purple-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <tab.icon className="w-4 h-4 mr-2" />
+              {tab.label}
             </button>
           ))}
         </nav>
       </div>
+      
       <div className="mt-6">
         {activeTab === 'global' && renderGlobalConstraints()}
+        
         {activeTab !== 'global' && (
           <div className="space-y-4">
-            <Select label={`${activeTab === 'teachers' ? 'Öğretmen' : activeTab === 'classes' ? 'Sınıf' : 'Ders'} Seçin`} value={selectedEntity} onChange={(value) => { setSelectedEntity(value); }} options={[{ value: '', label: 'Seçim yapın...' }, ...getEntityOptions()]} />
+            <Select 
+              label={`${activeTab === 'teachers' ? 'Öğretmen' : activeTab === 'classes' ? 'Sınıf' : 'Ders'} Seçin`} 
+              value={selectedEntity} 
+              onChange={(value) => { setSelectedEntity(value); }} 
+              options={[{ value: '', label: 'Seçim yapın...' }, ...getEntityOptions()]} 
+            />
             
             {selectedEntity && currentSelectedEntityObject ? (
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -218,9 +238,13 @@ const WizardStepConstraints: React.FC<WizardStepConstraintsProps> = ({
               </div>
             ) : (
               <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">{React.createElement(tabs.find(t=>t.id === activeTab)?.icon || Clock, {className:"w-8 h-8 text-gray-400"})}</div>
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                    {React.createElement(tabs.find(t=>t.id === activeTab)?.icon || Clock, {className:"w-8 h-8 text-gray-400"})}
+                  </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Öğe Seçin</h3>
-                  <p className="text-gray-500 max-w-md mx-auto">Zaman kısıtlamalarını düzenlemek için yukarıdaki listeden bir {activeTab.slice(0,-1)} seçin.</p>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Zaman kısıtlamalarını düzenlemek için yukarıdaki listeden bir {activeTab.slice(0,-1)} seçin.
+                  </p>
               </div>
             )}
           </div>
