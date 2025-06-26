@@ -195,7 +195,7 @@ const ScheduleWizard = () => {
       case 'classes': return (<WizardStepClasses data={wizardData} onUpdate={(data) => updateWizardData('classes', data.classes)} classes={classes} />);
       case 'classrooms': return (<WizardStepClassrooms data={wizardData} onUpdate={(data) => updateWizardData('classrooms', data.classrooms)} />);
       case 'teachers': return (<WizardStepTeachers selectedTeachers={wizardData.teachers.selectedTeachers} onSelectedTeachersChange={onSelectedTeachersChange} wizardData={wizardData} all_classes={classes} />);
-      case 'constraints': return (<WizardStepConstraints data={wizardData} onUpdate={(data) => onUpdate({ constraints: data })} teachers={teachers} classes={classes} subjects={subjects} />);
+      case 'constraints': return (<WizardStepConstraints data={wizardData} onUpdate={(data) => updateWizardData('constraints', data.constraints)} teachers={teachers} classes={classes} subjects={subjects} />);
       case 'generation': return (<WizardStepGeneration data={wizardData.generationSettings} wizardData={wizardData} onUpdate={(data) => updateWizardData('generationSettings', data)} onGenerate={handleGenerateSchedule} isGenerating={isGenerating} teachers={teachers} classes={classes} subjects={subjects} />);
       default: return <div>Bilinmeyen adım</div>;
     }
