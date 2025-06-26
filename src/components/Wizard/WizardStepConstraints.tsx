@@ -58,7 +58,7 @@ const WizardStepConstraints: React.FC<WizardStepConstraintsProps> = ({
   subjects
 }) => {
   const { success, warning } = useToast();
-  const [activeTab, setActiveTab] = useState<'global' | 'teachers' | 'classes' | 'subjects'>('global');
+  const [activeTab, setActiveTab] = useState<'global' | 'teachers' | 'classes' | 'subjects'>('teachers');
   const [selectedEntity, setSelectedEntity] = useState<string>('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
@@ -225,18 +225,20 @@ const WizardStepConstraints: React.FC<WizardStepConstraintsProps> = ({
               options={[{ value: '', label: 'Seçim yapın...' }, ...getEntityOptions()]} 
             />
             
-            {selectedEntity && currentSelectedEntityObject ? (
+            {selectedEntity && currentSelectedEntityObject && (
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <TimeConstraintGrid 
                     entityType={activeTab.slice(0, -1) as any} 
                     entityId={selectedEntity} 
                     entityName={entityName} 
                     entityLevel={entityLevel} 
-                    constraints={data.constraints.timeConstraints} 
+                    constraints={data.constraints.timeConstraints || []} 
                     onSave={handleConstraintsUpdate}
                 />
               </div>
-            ) : (
+            )}
+
+            {!selectedEntity && (
               <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed">
                   <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                     {React.createElement(tabs.find(t=>t.id === activeTab)?.icon || Clock, {className:"w-8 h-8 text-gray-400"})}
