@@ -7,7 +7,7 @@ import { WizardData } from '../../types/wizard';
 import { TimeConstraint } from '../../types/constraints';
 import Button from '../UI/Button';
 import Select from '../UI/Select';
-import TimeConstraintGrid from '../Constraints/TimeConstraintGrid';
+import TimeConstraintGrid from '../Constraints/TimeConstraintGrid'; // YENİ: Import eklendi
 import { useToast } from '../../hooks/useToast';
 
 const RULE_TEMPLATES = [
