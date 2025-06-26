@@ -1,0 +1,263 @@
+// --- START OF FILE src/components/Wizard/WizardStepConstraints.tsx ---
+
+import React, { useState, useEffect } from 'react';
+import { Clock, User, Building, BookOpen, Settings, Wand2 } from 'lucide-react';
+import { Teacher, Class, Subject, DAYS, PERIODS } from '../../types';
+import { WizardData } from '../../types/wizard';
+import { TimeConstraint, ConstraintType } from '../../types/constraints';
+import Button from '../UI/Button';
+import Select from '../UI/Select';
+import TimeConstraintGrid from '../Constraints/TimeConstraintGrid';
+import { useToast } from '../../hooks/useToast';
+
+const RULE_TEMPLATES = [
+  { 
+    id: 'ortaokul-ade', 
+    label: 'ADE Dersleri (Ortaokul)',
+    level: 'Ortaokul',
+    subjectKeyword: 'ADE',
+    rules: [
+        { day: 'Salı', periods: ['4', '5'] },
+        { day: 'Salı', periods: ['7', '8'] },
+    ]
+  },
+  { 
+    id: 'ilkokul-kulup', 
+    label: 'Kulüp Dersi (İlkokul)',
+    level: 'İlkokul',
+    subjectKeyword: 'KULÜP',
+    rules: [{ day: 'Perşembe', periods: ['9', '10'] }]
+  },
+  { 
+    id: 'ortaokul-kulup', 
+    label: 'Kulüp Dersi (Ortaokul)',
+    level: 'Ortaokul',
+    subjectKeyword: 'KULÜP',
+    rules: [{ day: 'Perşembe', periods: ['6', '7'] }]
+  },
+];
+
+function getEntityLevel(entity: Teacher | Class | Subject | null): 'Anaokulu' | 'İlkokul' | 'Ortaokul' | undefined {
+    if (!entity) return undefined;
+    return (entity as any).levels?.[0] || (entity as any).level || undefined;
+}
+
+interface WizardStepConstraintsProps {
+  data: WizardData;
+  onUpdate: (data: Partial<WizardData>) => void;
+  teachers: Teacher[];
+  classes: Class[];
+  subjects: Subject[];
+}
+
+const WizardStepConstraints: React.FC<WizardStepConstraintsProps> = ({
+  data,
+  onUpdate,
+  teachers,
+  classes,
+  subjects
+}) => {
+  const { success, info, warning } = useToast();
+  const [activeTab, setActiveTab] = useState<'global' | 'teachers' | 'classes' | 'subjects'>('global');
+  const [selectedEntity, setSelectedEntity] = useState<string>('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  
+  // Düzeltme: localConstraints state'i kaldırıldı. Doğrudan ana data manipüle edilecek.
+  const constraints = data.constraints?.timeConstraints || [];
+
+  const getEntityOptions = () => {
+    switch (activeTab) {
+      case 'teachers': return teachers.filter(t => data.teachers?.selectedTeachers.includes(t.id)).map(t => ({ value: t.id, label: `${t.name} (${t.branch})` }));
+      case 'classes': return classes.filter(c => data.classes?.selectedClasses.includes(c.id)).map(c => ({ value: c.id, label: `${c.name} (${(c.levels || [c.level]).join(', ')})` }));
+      case 'subjects': return subjects.filter(s => data.subjects?.selectedSubjects.includes(s.id)).map(s => ({ value: s.id, label: `${s.name} (${s.branch})` }));
+      default: return [];
+    }
+  };
+
+  const getSelectedEntity = () => {
+    if (!selectedEntity) return null;
+    switch (activeTab) {
+      case 'teachers': return teachers.find(t => t.id === selectedEntity);
+      case 'classes': return classes.find(c => c.id === selectedEntity);
+      case 'subjects': return subjects.find(s => s.id === selectedEntity);
+      default: return null;
+    }
+  };
+  
+  // *** DÜZELTME: Kural uygulama mantığı çift yönlü çalışacak şekilde güncellendi ***
+  const handleApplyRuleTemplate = () => {
+    if (!selectedTemplateId) return;
+    const template = RULE_TEMPLATES.find(t => t.id === selectedTemplateId);
+    if (!template) return;
+
+    const targetSubjects = subjects.filter(s => 
+        data.subjects.selectedSubjects.includes(s.id) &&
+        s.name.toUpperCase().includes(template.subjectKeyword.toUpperCase()) &&
+        (s.levels || [s.level]).includes(template.level as any)
+    );
+
+    if (targetSubjects.length === 0) {
+        warning('Uygun Ders Bulunamadı', `Sihirbaz seçimlerinizde "${template.label}" kuralının uygulanabileceği bir ders bulunamadı.`);
+        return;
+    }
+
+    let updatedConstraints = [...constraints];
+    const affectedTeachers = new Set<string>();
+
+    targetSubjects.forEach(subject => {
+        // Bu dersi veren öğretmenleri bul
+        classes.forEach(c => {
+            c.assignments?.forEach(a => {
+                if (a.subjectIds.includes(subject.id)) {
+                    affectedTeachers.add(a.teacherId);
+                }
+            });
+        });
+
+        // Kural saatlerini belirle
+        const ruleSlots = new Set<string>();
+        template.rules.forEach(rule => { rule.periods.forEach(period => { ruleSlots.add(`${rule.day}-${period}`); }); });
+
+        // DERS KISITLAMASI: Kural saatleri dışındaki her yeri 'unavailable' yap
+        DAYS.forEach(day => {
+            PERIODS.forEach(period => {
+                const isRuleSlot = ruleSlots.has(`${day}-${period}`);
+                const constraintType = isRuleSlot ? 'preferred' : 'unavailable';
+                
+                const existingIndex = updatedConstraints.findIndex(c => c.entityType === 'subject' && c.entityId === subject.id && c.day === day && c.period === period);
+                const newConstraint: TimeConstraint = {
+                    id: `${subject.id}-${day}-${period}-${Date.now()}`,
+                    entityType: 'subject', entityId: subject.id, day, period,
+                    constraintType: constraintType,
+                    reason: `Kural: ${template.label}`,
+                    createdAt: new Date(), updatedAt: new Date(),
+                };
+                if (existingIndex > -1) {
+                    updatedConstraints[existingIndex] = newConstraint;
+                } else {
+                    updatedConstraints.push(newConstraint);
+                }
+            });
+        });
+    });
+    
+    // ÖĞRETMEN KISITLAMASI: İlgili öğretmenleri kural saatlerinde 'unavailable' yap
+    affectedTeachers.forEach(teacherId => {
+        template.rules.forEach(rule => {
+            rule.periods.forEach(period => {
+                const existingIndex = updatedConstraints.findIndex(c => c.entityType === 'teacher' && c.entityId === teacherId && c.day === rule.day && c.period === period);
+                const newConstraint: TimeConstraint = {
+                    id: `${teacherId}-${rule.day}-${period}-${Date.now()}`,
+                    entityType: 'teacher', entityId: teacherId, day: rule.day, period: period,
+                    constraintType: 'unavailable',
+                    reason: `Kuraldan Dolayı Meşgul: ${template.label}`,
+                    createdAt: new Date(), updatedAt: new Date(),
+                };
+                if (existingIndex > -1) {
+                    updatedConstraints[existingIndex] = newConstraint;
+                } else {
+                    updatedConstraints.push(newConstraint);
+                }
+            });
+        });
+    });
+    
+    onUpdate({ constraints: { ...data.constraints, timeConstraints: updatedConstraints }});
+    success('Kural Uygulandı', `"${template.label}" kuralı ${targetSubjects.length} derse ve ${affectedTeachers.size} öğretmene başarıyla uygulandı.`);
+    setSelectedTemplateId('');
+  };
+
+  const handleConstraintsUpdate = (newConstraints: TimeConstraint[]) => {
+    onUpdate({
+      constraints: {
+        ...data.constraints,
+        timeConstraints: newConstraints,
+      },
+    });
+  };
+  
+  const handleGlobalConstraintChange = (key: string, value: any) => {
+    onUpdate({
+      constraints: { ...(data.constraints || { timeConstraints: [], globalRules: {} }), globalRules: { ...(data.constraints?.globalRules as object), [key]: value } }
+    });
+  };
+
+  const currentSelectedEntityObject = getSelectedEntity();
+  const entityName = currentSelectedEntityObject?.name || '';
+  const entityLevel = getEntityLevel(currentSelectedEntityObject as any) || 'İlkokul';
+  
+  const renderGlobalConstraints = () => (
+    <div className="space-y-6">
+      {/* ... global kurallar ... */}
+    </div>
+  );
+
+  const tabs = [
+    { id: 'global', label: 'Genel Kurallar', icon: Settings },
+    { id: 'teachers', label: 'Öğretmenler', icon: User },
+    { id: 'classes', label: 'Sınıflar', icon: Building },
+    { id: 'subjects', label: 'Dersler', icon: BookOpen }
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <Clock className="w-12 h-12 text-purple-600 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Zaman Kısıtlamaları</h2>
+        <p className="text-gray-600">Program oluşturma kurallarını ve zaman kısıtlamalarını belirleyin.</p>
+      </div>
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {tabs.map((tab) => (
+            <button key={tab.id} onClick={() => { setActiveTab(tab.id as any); setSelectedEntity(''); }} className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center ${activeTab === tab.id ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              <tab.icon className="w-4 h-4 mr-2" />{tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+      <div className="mt-6">
+        {activeTab === 'global' && renderGlobalConstraints()}
+        {activeTab !== 'global' && (
+          <div className="space-y-4">
+            <Select label={`${activeTab === 'teachers' ? 'Öğretmen' : activeTab === 'classes' ? 'Sınıf' : 'Ders'} Seçin`} value={selectedEntity} onChange={(value) => { setSelectedEntity(value); }} options={[{ value: '', label: 'Seçim yapın...' }, ...getEntityOptions()]} />
+            
+            {activeTab === 'subjects' && (
+                 <div className="bg-white rounded-lg border border-gray-200 p-4">
+                     <h4 className="font-medium text-gray-900 mb-3 flex items-center"><Wand2 className="w-5 h-5 mr-2 text-orange-500"/>Kural Şablonu Uygula</h4>
+                     <p className="text-sm text-gray-600 mb-4">Seçili derse veya ilgili derslere toplu kısıtlama kuralları uygulayın.</p>
+                     <div className="flex items-end gap-3">
+                         <div className="flex-grow"><Select label="Uygulanacak Kural" value={selectedTemplateId} onChange={setSelectedTemplateId} options={[{value: '', label: 'Bir kural şablonu seçin...'}, ...RULE_TEMPLATES.map(t => ({ value: t.id, label: t.label }))]} /></div>
+                         <Button onClick={handleApplyRuleTemplate} disabled={!selectedTemplateId} variant="primary">Kuralı Uygula</Button>
+                     </div>
+                     <p className="text-xs text-gray-500 mt-2">Bu işlem, ilgili dersin ve o dersi veren öğretmenlerin zaman kısıtlamalarını güncelleyecektir.</p>
+                 </div>
+            )}
+
+            {selectedEntity && currentSelectedEntityObject ? (
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <TimeConstraintGrid 
+                    entityType={activeTab.slice(0, -1) as any} 
+                    entityId={selectedEntity} 
+                    entityName={entityName} 
+                    entityLevel={entityLevel} 
+                    constraints={constraints} 
+                    onSave={handleConstraintsUpdate}
+                />
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">{React.createElement(tabs.find(t=>t.id === activeTab)?.icon || Clock, {className:"w-8 h-8 text-gray-400"})}</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Öğe Seçin</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">Zaman kısıtlamalarını düzenlemek için yukarıdaki listeden bir {activeTab.slice(0,-1)} seçin.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default WizardStepConstraints;
+
+// --- END OF FILE src/components/Wizard/WizardStepConstraints.tsx ---
