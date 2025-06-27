@@ -1,3 +1,5 @@
+// project/src/components/Wizard/WizardStepConstraints.tsx
+
 import React, { useState } from 'react';
 import { Clock, User, Building, BookOpen } from 'lucide-react';
 import { Teacher, Class, Subject } from '../../types';
@@ -27,7 +29,6 @@ const WizardStepConstraints: React.FC<WizardStepConstraintsProps> = ({
   classes,
   subjects
 }) => {
-  const { success } = useToast();
   const [activeTab, setActiveTab] = useState<'teachers' | 'classes' | 'subjects'>('teachers');
   const [selectedEntityId, setSelectedEntityId] = useState<string>('');
 
@@ -67,8 +68,6 @@ const WizardStepConstraints: React.FC<WizardStepConstraintsProps> = ({
         timeConstraints: newConstraints,
       },
     });
-    // Her kaydetme işleminde bildirim göstermek yerine, 
-    // Grid içindeki save butonu zaten kullanıcıya geri bildirim veriyor.
   };
   
   const currentSelectedEntityObject = getSelectedEntity();
@@ -81,7 +80,6 @@ const WizardStepConstraints: React.FC<WizardStepConstraintsProps> = ({
     { id: 'subjects', label: 'Dersler', icon: BookOpen }
   ];
 
-  // FIX: Find the active tab info to use for labels
   const activeTabInfo = tabs.find(t => t.id === activeTab);
 
   return (
@@ -117,7 +115,6 @@ const WizardStepConstraints: React.FC<WizardStepConstraintsProps> = ({
       <div className="mt-6">
         <div className="space-y-4">
           <Select 
-            // FIX: Use activeTabInfo to get the correct label
             label={`${activeTabInfo?.label || 'Öğe'} Seçin`} 
             value={selectedEntityId} 
             onChange={(value) => { setSelectedEntityId(value); }} 
@@ -138,12 +135,10 @@ const WizardStepConstraints: React.FC<WizardStepConstraintsProps> = ({
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed mt-4">
                 <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                  {/* FIX: Use activeTabInfo here as well for consistency */}
                   {React.createElement(activeTabInfo?.icon || Clock, {className:"w-8 h-8 text-gray-400"})}
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Öğe Seçin</h3>
                 <p className="text-gray-500 max-w-md mx-auto">
-                  {/* FIX: Use activeTabInfo here as well */}
                   Zaman kısıtlamalarını düzenlemek için yukarıdaki listeden bir {activeTabInfo?.label.toLowerCase() || 'öğe'} seçin.
                 </p>
             </div>
