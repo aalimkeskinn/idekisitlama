@@ -1,8 +1,6 @@
-// --- START OF FILE src/components/Constraints/TimeConstraintGrid.tsx ---
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Clock, Save, RotateCcw, Lock, Slash } from 'lucide-react';
-import { DAYS, PERIODS, getTimeForPeriod, formatTimeRange, TimePeriod } from '../../types';
+import { DAYS, formatTimeRange, getTimePeriods } from '../../types';
 import { TimeConstraint, CONSTRAINT_TYPES, ConstraintType } from '../../types/constraints';
 import Button from '../UI/Button';
 
@@ -34,9 +32,7 @@ const TimeConstraintGrid: React.FC<TimeConstraintGridProps> = ({
 
   const timePeriodsToRender = useMemo(() => {
     const level = entityLevel || 'İlkokul';
-    const periods = getTimeForPeriod('all', level);
-    if (!periods) return [];
-    return periods.map(p => ({ ...p, isFixed: !!p.isBreak }));
+    return getTimePeriods(level);
   }, [entityLevel]);
 
   const updateLocalConstraints = (newConstraints: TimeConstraint[]) => {
@@ -45,10 +41,10 @@ const TimeConstraintGrid: React.FC<TimeConstraintGridProps> = ({
   };
   
   const handleSetAll = (type: ConstraintType) => {
-    let newConstraints = [...constraints].filter(c => c.entityId !== entityId);
+    let newConstraints = localConstraints.filter(c => c.entityId !== entityId);
     if (type !== 'preferred') {
         timePeriodsToRender.forEach(tp => {
-            if (!tp.isFixed) {
+            if (!tp.isBreak) {
                 DAYS.forEach(day => {
                     newConstraints.push({
                         id: `${entityId}-${day}-${tp.period}-${Date.now()}`,
@@ -62,11 +58,13 @@ const TimeConstraintGrid: React.FC<TimeConstraintGridProps> = ({
         });
     }
     updateLocalConstraints(newConstraints);
-};
+  };
 
   const handleReset = () => {
-      const remainingConstraints = constraints.filter(c => c.entityId !== entityId);
-      updateLocalConstraints(remainingConstraints);
+    const originalEntityConstraints = constraints.filter(c => c.entityId === entityId);
+    const otherEntitiesConstraints = localConstraints.filter(c => c.entityId !== entityId);
+    setLocalConstraints([...otherEntitiesConstraints, ...originalEntityConstraints]);
+    setHasChanges(false);
   }
 
   const handleSave = () => {
@@ -140,8 +138,8 @@ const TimeConstraintGrid: React.FC<TimeConstraintGridProps> = ({
             <thead className="bg-gray-50"><tr><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase sticky left-0 bg-gray-50 z-10">DERS SAATİ</th>{DAYS.map(day => (<th key={day} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase"><div className="font-bold">{day}</div></th>))}</tr></thead>
             <tbody className="divide-y divide-gray-200 bg-white">
               {timePeriodsToRender.map((tp) => {
-                  const isFixed = tp.isFixed;
-                  const periodLabel = tp.isBreak ? tp.period.replace('break-after-1','Kahvaltı').replace('prep','Hazırlık').replace('afternoon-breakfast','İkindi K.') : `${tp.period}. Ders`;
+                  const isFixed = tp.isBreak;
+                  const periodLabel = typeof tp.period === 'string' && tp.period.startsWith('break') ? 'Teneffüs/Kahvaltı' : tp.isBreak ? 'Mola' : `${tp.period}. Ders`;
                   
                   return (
                     <tr key={tp.period} className={isFixed ? 'bg-gray-100' : ''}>
@@ -160,7 +158,7 @@ const TimeConstraintGrid: React.FC<TimeConstraintGridProps> = ({
                         }
                         const constraint = getConstraintForSlot(day, tp.period);
                         const constraintConfig = constraint ? CONSTRAINT_TYPES[constraint.constraintType] : CONSTRAINT_TYPES.preferred;
-                        return (<td key={`${day}-${tp.period}`} className="px-2 py-2"><button onClick={() => handleSlotClick(day, tp.period, isFixed)} disabled={isFixed} className={`w-full min-h-[70px] p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${constraintConfig.color} ${isFixed ? 'cursor-not-allowed' : 'hover:opacity-80 hover:scale-105'}`}><div className="text-center"><div className="text-xl mb-1">{constraintConfig.icon}</div><div className="text-xs font-medium leading-tight">{constraintConfig.label}</div></div></button></td>);
+                        return (<td key={`${day}-${tp.period}`} className="px-2 py-2"><button onClick={() => handleSlotClick(day, tp.period, isFixed || false)} disabled={isFixed} className={`w-full min-h-[70px] p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${constraintConfig.color} ${isFixed ? 'cursor-not-allowed' : 'hover:opacity-80 hover:scale-105'}`}><div className="text-center"><div className="text-xl mb-1">{constraintConfig.icon}</div><div className="text-xs font-medium leading-tight">{constraintConfig.label}</div></div></button></td>);
                       })}
                     </tr>
                   )
@@ -174,4 +172,3 @@ const TimeConstraintGrid: React.FC<TimeConstraintGridProps> = ({
 };
 
 export default TimeConstraintGrid;
-// --- END OF FILE src/components/Constraints/TimeConstraintGrid.tsx ---
