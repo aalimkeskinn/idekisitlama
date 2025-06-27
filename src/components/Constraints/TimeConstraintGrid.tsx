@@ -1,3 +1,5 @@
+// project/src/components/Constraints/TimeConstraintGrid.tsx
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Clock, Save, RotateCcw, Lock, Slash } from 'lucide-react';
 import { DAYS, formatTimeRange, getTimePeriods } from '../../types';
