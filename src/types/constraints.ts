@@ -1,3 +1,5 @@
+// project/src/types/constraints.ts
+
 export interface TimeConstraint {
   id: string;
   entityType: 'teacher' | 'class' | 'subject';
