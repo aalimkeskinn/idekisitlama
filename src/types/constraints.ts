@@ -10,18 +10,6 @@ export interface TimeConstraint {
   updatedAt: Date;
 }
 
-export interface ConstraintRule {
-  id: string;
-  name: string;
-  description: string;
-  entityType: 'teacher' | 'class' | 'subject';
-  constraintType: 'unavailable' | 'preferred' | 'restricted';
-  color: string;
-  icon: string;
-  isActive: boolean;
-  createdAt: Date;
-}
-
 export const CONSTRAINT_TYPES = {
   unavailable: {
     label: 'Müsait Değil',
